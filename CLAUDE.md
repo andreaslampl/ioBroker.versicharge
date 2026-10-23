@@ -31,7 +31,8 @@ FW >= V2.136.14). evcc's versicharge driver is not MIT licensed - do not copy fr
   the fake charger now refuses every read touching a register outside the table, and Modbus errors name the register.
 - 0.1.1 field: connects and reads the owner's wallbox: MLFB 8EM1310-3FJ04-3GA2, firmware 2.500.34, 3-phase,
   max 16 A, meter "eichrechtskonform (ERK)" - per Siemens the energy registers read 0 on ERK, so energy.total may
-  stay empty and energy.session comes from integrated power. No register skipped. Control/charging not yet tested.
+  stay empty and energy.session comes from integrated power. No register skipped. Owner confirmed the values
+  arrive in ioBroker. Control (writing the current) and surplus charging not yet tested.
 - No 1p/3p switching register exists in the map (only 41643 = charger type, read-only).
 
 ## Conventions
