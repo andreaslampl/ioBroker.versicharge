@@ -65,6 +65,8 @@ class Versicharge extends utils.Adapter {
         this.failures = 0;
         this.lastError = '';
         this.lastOn = 0; // last current >= 6 A (for control.enabled = true)
+        this.missing = new Set(); // registers this charger refuses (exception 2)
+        this.split = new Set(); // blocks that have to be read entry by entry
         this.session = { start: null, since: 0, wh: 0, ts: 0 };
         this.on('ready', this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
@@ -114,11 +116,11 @@ class Versicharge extends utils.Adapter {
             if (!this.info) {
                 await this.readInfo();
             }
-            const blocks = [];
-            for (const [addr, count] of R.POLL_BLOCKS) {
-                blocks.push(await this.mb.read(addr, count));
+            const values = await this.readEntries(R.POLL);
+            if (!values.has(1599)) {
+                throw new Error('Zustand der Wallbox (Register 41600) nicht lesbar');
             }
-            this.live = R.parsePoll(blocks);
+            this.live = R.parsePoll(values);
             await this.writeLive(this.live);
             if (this.failures || !this.connectedOnce) {
                 await this.setState('info.connection', true, true);
@@ -145,22 +147,59 @@ class Versicharge extends utils.Adapter {
         this.timer = setTimeout(() => this.poll(), wait);
     }
 
-    async readInfo() {
-        const a = await this.mb.read(...R.INFO_BLOCKS[0]);
-        let b = new Array(20).fill(0x2020);
-        try {
-            b = await this.mb.read(...R.INFO_BLOCKS[1]);
-        } catch (err) {
-            this.log.debug(`Firmware-Texte nicht lesbar: ${err.message}`);
+    /**
+     * Reads table entries in as few requests as possible. A block the charger refuses (exception 2, e.g. a
+     * register this firmware does not have) is read entry by entry from then on; refused entries are skipped.
+     * Returns Map internal address -> uint16.
+     */
+    async readEntries(entries) {
+        const out = new Map();
+        for (const blk of R.blocks(entries.filter(([a]) => !this.missing.has(a)))) {
+            const key = `${blk.addr}+${blk.count}`;
+            if (blk.entries.length === 1 || !this.split.has(key)) {
+                try {
+                    (await this.mb.read(blk.addr, blk.count)).forEach((v, i) => out.set(blk.addr + i, v));
+                    continue;
+                } catch (err) {
+                    if (err.code !== 2) {
+                        throw err;
+                    }
+                    if (blk.entries.length === 1) {
+                        this.skip(blk.addr);
+                        continue;
+                    }
+                    this.split.add(key);
+                }
+            }
+            for (const [addr, count] of blk.entries) {
+                try {
+                    (await this.mb.read(addr, count)).forEach((v, i) => out.set(addr + i, v));
+                } catch (err) {
+                    if (err.code !== 2) {
+                        throw err;
+                    }
+                    this.skip(addr);
+                }
+            }
         }
-        const info = R.parseInfo(a, b);
-        const phases = (await this.mb.read(1642, 1))[0] === 1 ? 3 : 1;
+        return out;
+    }
+
+    skip(addr) {
+        this.missing.add(addr);
+        this.log.info(`Register ${40001 + addr} gibt die Wallbox nicht her (Firmware) – wird übersprungen`);
+    }
+
+    async readInfo() {
+        const info = R.parseInfo(await this.readEntries(R.INFO));
+        const p = await this.readEntries([[1642, 1]]);
+        const phases = p.has(1642) ? (p.get(1642) === 1 ? 3 : 1) : undefined;
         this.info = { ...info, phases };
         for (const k of ['manufacturer', 'serial', 'mlfb', 'productionDate', 'firmware', 'firmwareM0', 'variant', 'meter', 'commissioned', 'delay', 'ratedCurrent', 'installCurrent', 'phases']) {
             await this.put(`device.${k}`, this.info[k]);
         }
         await this.put('control.maxCurrent', this.maxCurrent());
-        this.log.info(`${info.manufacturer} ${info.mlfb} (Seriennr. ${info.serial}), Firmware ${info.firmware || '?'}, ${phases}-phasig, max. ${this.maxCurrent()} A, Zähler: ${info.meter}`);
+        this.log.info(`${info.manufacturer || 'Wallbox'} ${info.mlfb || ''} (Seriennr. ${info.serial || '?'}), Firmware ${info.firmware || '?'}, ${phases || '?'}-phasig, max. ${this.maxCurrent()} A, Zähler: ${info.meter}`);
         await this.writeFallback();
     }
 
@@ -195,27 +234,30 @@ class Versicharge extends utils.Adapter {
         await this.put('status.text', e.fault && v.error ? `${e.text}: ${v.errorText}` : e.text);
         await this.put('status.plugged', e.plugged);
         await this.put('status.charging', e.charging);
-        await this.put('status.fault', e.fault || v.error !== 0);
+        await this.put('status.fault', e.fault || Boolean(v.error));
         await this.put('status.error', v.error);
         await this.put('status.errorText', v.errorText);
         await this.put('status.ocpp', v.ocpp);
         await this.put('status.tempBoard', v.tempBoard);
-        await this.put('status.tempCable', Math.max(v.tempCableA, v.tempCableB));
+        const cable = [v.tempCableA, v.tempCableB].filter(x => x !== undefined);
+        await this.put('status.tempCable', cable.length ? Math.max(...cable) : undefined);
         await this.put('power.total', v.powerTotal);
         for (let i = 0; i < 3; i++) {
             await this.put(`power.l${i + 1}`, v.power[i]);
             await this.put(`power.current${i + 1}`, v.current[i]);
             await this.put(`power.voltage${i + 1}`, v.voltage[i]);
         }
-        if (this.info && this.info.phases !== v.phases) {
+        if (this.info && v.phases !== undefined && this.info.phases !== v.phases) {
             this.info.phases = v.phases;
             await this.put('device.phases', v.phases);
         }
-        await this.put('control.current', v.currentLimit);
-        if (v.currentLimit >= 6) {
-            this.lastOn = v.currentLimit;
+        if (v.currentLimit !== undefined) {
+            await this.put('control.current', v.currentLimit);
+            if (v.currentLimit >= 6) {
+                this.lastOn = v.currentLimit;
+            }
+            await this.put('control.enabled', v.currentLimit >= 6);
         }
-        await this.put('control.enabled', v.currentLimit >= 6);
         await this.updateSession(v);
     }
 
@@ -223,11 +265,12 @@ class Versicharge extends utils.Adapter {
     async updateSession(v) {
         const now = Date.now();
         const s = this.session;
-        const kwh = v.energyTotal / 1000;
-        if (v.energyTotal > 0) {
+        const meter = v.energyTotal || 0;
+        const kwh = meter / 1000;
+        if (meter > 0) {
             await this.put('energy.total', Math.round(kwh * 1000) / 1000);
         } else if (s.ts && v.evse.plugged) {
-            s.wh += (v.powerTotal * Math.min(now - s.ts, 60000)) / 3600000;
+            s.wh += ((v.powerTotal || 0) * Math.min(now - s.ts, 60000)) / 3600000;
         }
         s.ts = now;
         if (v.evse.plugged && s.start === null) {
@@ -241,7 +284,7 @@ class Versicharge extends utils.Adapter {
             await this.put('energy.sessionStart', 0);
         }
         if (s.start !== null) {
-            const val = v.energyTotal > 0 ? kwh - s.start : s.wh / 1000;
+            const val = meter > 0 ? kwh - s.start : s.wh / 1000;
             await this.put('energy.session', Math.max(0, Math.round(val * 1000) / 1000));
         }
     }

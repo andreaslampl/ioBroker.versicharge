@@ -40,6 +40,7 @@ test('Modbus client: exceptions, only one connection, timeout', async () => {
     try {
         assert.equal(R.ascii(await mb.read(0, 5)), 'Siemens AG');
         await assert.rejects(mb.read(1600, 40), /Modbus-Fehler 2/);
+        await assert.rejects(mb.read(0, 31), /Modbus-Fehler 2/, '40024 is not in the table');
         // a second client gets no connection while the first holds it
         const other = new ModbusClient({ host: '127.0.0.1', port, unitId: 2, timeout: 300 });
         await assert.rejects(other.read(0, 5));
@@ -136,4 +137,19 @@ test('connection loss: not connected, then reconnects with fallback again', asyn
     await until(() => adapter.val('info.connection') === true, 8000);
     assert.ok(c.writes.slice(before).some(w => w.addr === 1661), 'fallback sent again after reconnect');
     assert.ok(adapter.logs.some(l => /warn: Wallbox: Keine Antwort/.test(l)));
+});
+
+test('a register the firmware does not have is skipped, the rest still works', async t => {
+    const { c, adapter } = await start(t, {}, { missing: [41604, 40031] });
+    assert.equal(adapter.val('device.manufacturer'), 'Siemens AG');
+    assert.equal(adapter.val('device.meter'), undefined);
+    assert.equal(adapter.val('power.total'), 0);
+    assert.ok(adapter.logs.some(l => /Register 41604 gibt die Wallbox nicht her/.test(l)));
+    assert.ok(adapter.logs.some(l => /Register 40031 gibt die Wallbox nicht her/.test(l)));
+    assert.ok(!adapter.logs.some(l => /warn/.test(l)), adapter.logs.join('\n'));
+    // later polls read the block around it in parts, without the missing register
+    c.reads.length = 0;
+    c.car('C2');
+    await until(() => adapter.val('status.charging') === true);
+    assert.ok(!c.reads.some(([a, n]) => a <= 1603 && a + n > 1603));
 });

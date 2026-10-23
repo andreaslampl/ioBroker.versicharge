@@ -6,18 +6,15 @@ const net = require('node:net');
 const Module = require('node:module');
 const { EventEmitter } = require('node:events');
 
-/** register blocks the charger knows; reads across gaps are refused with exception 2 like the real one */
-const VALID = [
-    [0, 31],
-    [31, 20],
-    [1599, 7],
-    [1633, 1],
-    [1640, 3],
-    [1647, 10],
-    [1660, 6],
-    [1692, 2],
-    [1825, 3],
-];
+/** registers of the Siemens table (external numbers, from-to); a read touching anything else -> exception 2 like the real one */
+const TABLE = '40001-40005 40006-40007 40008-40012 40013-40022 40023 40025 40026 40027 40028 40029 40030 40031 40032-40036 40037-40041 40042 40043-40048 40049-40051 41600-41606 41634 41641-41642 41643 41648-41657 41661-41678 41693-41694 41826 41827';
+const MAPPED = new Set();
+for (const r of TABLE.split(' ')) {
+    const [from, to = from] = r.split('-').map(Number);
+    for (let n = from; n <= to; n++) {
+        MAPPED.add(n - 40001);
+    }
+}
 
 function text(regs, at, str, len) {
     const b = Buffer.alloc(len * 2, 0x20);
@@ -27,7 +24,7 @@ function text(regs, at, str, len) {
     }
 }
 
-function fakeCharger({ unitId = 2, phases = 3, install = 16 } = {}) {
+function fakeCharger({ unitId = 2, phases = 3, install = 16, missing = [] } = {}) {
     const regs = new Array(2000).fill(0);
     text(regs, 0, 'Siemens AG', 5);
     regs[5] = 2024;
@@ -52,6 +49,7 @@ function fakeCharger({ unitId = 2, phases = 3, install = 16 } = {}) {
         regs,
         unitId,
         writes: [],
+        reads: [],
         connections: 0,
         maxConnections: 1,
         open: new Set(),
@@ -84,7 +82,16 @@ function fakeCharger({ unitId = 2, phases = 3, install = 16 } = {}) {
     };
     c.car('A1');
     c.meter(1234567);
-    const valid = (addr, count) => VALID.some(([a, n]) => addr >= a && addr + count <= a + n);
+    const gone = new Set(missing.map(n => n - 40001)); // registers an older/newer firmware does not have
+    const valid = (addr, count) => {
+        for (let a = addr; a < addr + count; a++) {
+            if (!MAPPED.has(a) || gone.has(a)) {
+                return false;
+            }
+        }
+        c.reads.push([addr, count]);
+        return true;
+    };
     c.server = net.createServer(sock => {
         c.connections++;
         if (c.open.size >= c.maxConnections) {
