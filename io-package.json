@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "versicharge",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "news": {
+      "0.1.3": {
+        "en": "Pause (0 A) holds: the wallbox shows its maximum current again a few seconds after a pause while staying paused - now 0 A is shown, and the pause is sent again if the car starts charging anyway",
+        "de": "Pause (0 A) bleibt: Die Wallbox zeigt nach einer Pause nach wenigen Sekunden wieder ihren Höchststrom, bleibt aber pausiert – jetzt wird 0 A angezeigt, und lädt das Auto trotzdem, wird die Pause erneut geschickt"
+      },
       "0.1.2": {
         "en": "Diagnosis: the log shows every command with its sender and when the wallbox changes the charging current by itself",
         "de": "Diagnose: Das Log zeigt jeden Befehl mit Absender und wenn die Wallbox den Ladestrom selbst ändert"

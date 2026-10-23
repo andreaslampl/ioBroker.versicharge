@@ -36,6 +36,12 @@ FW >= V2.136.14). evcc's versicharge driver is not MIT licensed - do not copy fr
 - 0.1.1 field: 6 A works; 0 pauses (enabled false), but control.current goes back to 16 right after. Unknown
   whether another ioBroker writer (energie wallbox control?) or the wallbox itself resets it, and whether the
   car really charges again. 0.1.2 logs every command with `state.from` and changes the wallbox makes by itself.
+- 0.1.2 field log: "Befehl control.current = 0 (von admin.0)", read back 0 A, 4 s later the register shows 16 A
+  without any command, state B1 (paused by the EVSE). So the wallbox itself resets the register after a pause.
+  0.1.3 `holdPause()`: after a pause command `this.pause` is set; while it is set the register value >= 6 is shown
+  as 0 (control.current/enabled), and if the car charges anyway (C2 and > 1 kW for 2 polls) 0 is sent again
+  (at most every 60 s, warn after 3). Commands and repeats run via `exclusive()` (a repeat never overwrites a
+  newer command). Open: whether the car really stays paused, and whether 6 A after the pause resumes the ID.4.
 - No 1p/3p switching register exists in the map (only 41643 = charger type, read-only).
 
 ## Conventions

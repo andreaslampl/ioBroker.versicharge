@@ -154,12 +154,35 @@ test('a register the firmware does not have is skipped, the rest still works', a
     assert.ok(!c.reads.some(([a, n]) => a <= 1603 && a + n > 1603));
 });
 
-test('diagnosis: commands are logged with their sender, changes by the wallbox itself too', async t => {
+test('pause: the wallbox shows 16 A again after 0 (owner FW 2.500) - the pause stays, is sent again if it charges', async t => {
     const { c, adapter } = await start(t);
     c.revertPause = 16;
+    c.car('B1');
     adapter.states['versicharge.0.control.current'] = { val: 0, ack: false, from: 'system.adapter.admin.0' };
     adapter.emit('stateChange', 'versicharge.0.control.current', adapter.states['versicharge.0.control.current']);
-    await until(() => adapter.logs.some(l => /Wallbox meldet jetzt 16 A statt 0 A, ohne Befehl/.test(l)));
-    assert.ok(adapter.logs.some(l => l === 'info: Befehl control.current = 0 (von admin.0)'));
-    assert.ok(adapter.logs.some(l => l === 'info: Ladestrom 0 A geschrieben, Wallbox meldet 0 A'));
+    await until(() => adapter.logs.some(l => /zeigt nach der Pause wieder 16 A \(Zustand B1\)/.test(l)));
+    assert.ok(adapter.logs.includes('info: Befehl control.current = 0 (von admin.0)'));
+    assert.ok(adapter.logs.includes('info: Ladestrom 0 A geschrieben, Wallbox meldet 0 A'));
+    assert.equal(adapter.val('control.current'), 0);
+    assert.equal(adapter.val('control.enabled'), false);
+    assert.ok(!adapter.logs.some(l => /ohne Befehl/.test(l)));
+    // the car charges anyway -> pause sent again
+    const n = c.writes.length;
+    c.car('C2');
+    await until(() => adapter.logs.some(l => /lädt trotz Pause \(11040 W\) – Pause erneut gesendet \(1\. Mal\)/.test(l)));
+    await until(() => c.writes.length > n);
+    assert.deepEqual(c.writes.slice(n).map(w => [w.addr, w.values[0]]), [[1633, 0]]);
+    assert.equal(adapter.val('control.current'), 0);
+    // a new current ends the pause (after the fake's own revert timer of the repeated pause)
+    await new Promise(r => setTimeout(r, 300));
+    adapter.command('control.current', 10);
+    await until(() => adapter.val('control.current') === 10 && adapter.val('control.enabled') === true);
+});
+
+test('diagnosis: a current changed by the wallbox itself (e.g. the app) is logged', async t => {
+    const { c, adapter } = await start(t);
+    adapter.command('control.current', 10);
+    await until(() => adapter.logs.includes('info: Ladestrom 10 A geschrieben, Wallbox meldet 10 A'));
+    c.regs[1633] = 12;
+    await until(() => adapter.logs.some(l => /Wallbox meldet jetzt 12 A statt 10 A, ohne Befehl/.test(l)));
 });

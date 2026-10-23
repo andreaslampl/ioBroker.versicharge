@@ -66,6 +66,8 @@ class Versicharge extends utils.Adapter {
         this.lastError = '';
         this.lastOn = 0; // last current >= 6 A (for control.enabled = true)
         this.missing = new Set(); // registers this charger refuses (exception 2)
+        this.lock = Promise.resolve();
+        this.pause = null; // after a pause command: {noted, charging, tries, sentAt}
         this.split = new Set(); // blocks that have to be read entry by entry
         this.session = { start: null, since: 0, wh: 0, ts: 0 };
         this.on('ready', this.onReady.bind(this));
@@ -252,18 +254,58 @@ class Versicharge extends utils.Adapter {
             await this.put('device.phases', v.phases);
         }
         if (v.currentLimit !== undefined) {
+            const limit = await this.holdPause(v);
             const before = this.last.get('control.current');
-            if (this.commanded !== undefined && before !== undefined && v.currentLimit !== before) {
+            if (this.commanded !== undefined && before !== undefined && limit !== before) {
                 // changed without a command from ioBroker: the wallbox itself (app, its own logic) or another Modbus client
-                this.log.info(`Wallbox meldet jetzt ${v.currentLimit} A statt ${before} A, ohne Befehl aus ioBroker (Zustand ${e.code}, ${v.powerTotal ?? '?'} W)`);
+                this.log.info(`Wallbox meldet jetzt ${limit} A statt ${before} A, ohne Befehl aus ioBroker (Zustand ${e.code}, ${v.powerTotal ?? '?'} W)`);
             }
-            await this.put('control.current', v.currentLimit);
-            if (v.currentLimit >= 6) {
-                this.lastOn = v.currentLimit;
+            await this.put('control.current', limit);
+            if (limit >= 6) {
+                this.lastOn = limit;
             }
-            await this.put('control.enabled', v.currentLimit >= 6);
+            await this.put('control.enabled', limit >= 6);
         }
         await this.updateSession(v);
+    }
+
+    /**
+     * Owner's VersiCharge (FW 2.500.34): a few seconds after writing 0 the register shows the installation current
+     * again while the state stays B1 (paused). So after a pause command the pause is what we show; if the car
+     * really charges again, the pause is sent once more (at most every 60 s, warning after 3 tries).
+     */
+    async holdPause(v) {
+        const p = this.pause;
+        if (!p || v.currentLimit < 6) {
+            if (p) {
+                p.charging = 0;
+            }
+            return v.currentLimit;
+        }
+        if (!p.noted) {
+            p.noted = true;
+            this.log.info(`Wallbox zeigt nach der Pause wieder ${v.currentLimit} A (Zustand ${v.evse.code}) – die Pause gilt weiter, angezeigt wird 0 A`);
+        }
+        p.charging = v.evse.charging && (v.powerTotal || 0) > 1000 ? p.charging + 1 : 0;
+        if (p.charging >= 2 && Date.now() - p.sentAt >= 60000) {
+            p.tries++;
+            p.sentAt = Date.now();
+            p.charging = 0;
+            if (p.tries > 3) {
+                if (p.tries === 4) {
+                    this.log.warn('Die Wallbox lädt trotz Pause weiter – die Pause hält bei dieser Firmware nicht (bitte melden)');
+                }
+            } else {
+                await this.exclusive(async () => {
+                    if (this.pause !== p) {
+                        return; // a new command came in meanwhile
+                    }
+                    this.log.info(`Wallbox lädt trotz Pause (${v.powerTotal} W) – Pause erneut gesendet (${p.tries}. Mal)`);
+                    await this.mb.writeSingle(R.REG.current, 0);
+                });
+            }
+        }
+        return 0;
     }
 
     /** energy of the current charging session: meter at plug-in (or integrated power when the meter reads 0, e.g. ERK variant) */
@@ -332,8 +374,20 @@ class Versicharge extends utils.Adapter {
         }
     }
 
+    /** commands and the pause repeat one after another (a repeat must not overwrite a newer command) */
+    exclusive(fn) {
+        const run = this.lock.then(fn, fn);
+        this.lock = run.catch(() => {});
+        return run;
+    }
+
+    setCurrent(val) {
+        this.pause = null;
+        return this.exclusive(() => this._setCurrent(val));
+    }
+
     /** A -> charger; below 6 A pauses (per charging standard), above the maximum is limited */
-    async setCurrent(val) {
+    async _setCurrent(val) {
         let a = Number(String(val).replace(',', '.'));
         if (!Number.isFinite(a) || a < 6) {
             a = 0;
@@ -344,13 +398,15 @@ class Versicharge extends utils.Adapter {
         const back = R.regToCurrent((await this.mb.read(R.REG.current, 1))[0]);
         this.log.info(`Ladestrom ${a} A geschrieben, Wallbox meldet ${back} A`);
         this.commanded = a;
+        this.pause = a < 6 ? { noted: false, charging: 0, tries: 0, sentAt: 0 } : null;
         if (back >= 6) {
             this.lastOn = back;
         }
-        this.last.set('control.current', back);
-        this.last.set('control.enabled', back >= 6);
-        await this.setState('control.current', back, true);
-        await this.setState('control.enabled', back >= 6, true);
+        const shown = this.pause ? 0 : back;
+        this.last.set('control.current', shown);
+        this.last.set('control.enabled', shown >= 6);
+        await this.setState('control.current', shown, true);
+        await this.setState('control.enabled', shown >= 6, true);
     }
 
     onUnload(callback) {
