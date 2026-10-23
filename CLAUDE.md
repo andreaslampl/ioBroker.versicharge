@@ -33,6 +33,9 @@ FW >= V2.136.14). evcc's versicharge driver is not MIT licensed - do not copy fr
   max 16 A, meter "eichrechtskonform (ERK)" - per Siemens the energy registers read 0 on ERK, so energy.total may
   stay empty and energy.session comes from integrated power. No register skipped. Owner confirmed the values
   arrive in ioBroker. Control (writing the current) and surplus charging not yet tested.
+- 0.1.1 field: 6 A works; 0 pauses (enabled false), but control.current goes back to 16 right after. Unknown
+  whether another ioBroker writer (energie wallbox control?) or the wallbox itself resets it, and whether the
+  car really charges again. 0.1.2 logs every command with `state.from` and changes the wallbox makes by itself.
 - No 1p/3p switching register exists in the map (only 41643 = charger type, read-only).
 
 ## Conventions

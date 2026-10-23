@@ -252,6 +252,11 @@ class Versicharge extends utils.Adapter {
             await this.put('device.phases', v.phases);
         }
         if (v.currentLimit !== undefined) {
+            const before = this.last.get('control.current');
+            if (this.commanded !== undefined && before !== undefined && v.currentLimit !== before) {
+                // changed without a command from ioBroker: the wallbox itself (app, its own logic) or another Modbus client
+                this.log.info(`Wallbox meldet jetzt ${v.currentLimit} A statt ${before} A, ohne Befehl aus ioBroker (Zustand ${e.code}, ${v.powerTotal ?? '?'} W)`);
+            }
             await this.put('control.current', v.currentLimit);
             if (v.currentLimit >= 6) {
                 this.lastOn = v.currentLimit;
@@ -306,6 +311,8 @@ class Versicharge extends utils.Adapter {
             return;
         }
         const key = id.slice(this.namespace.length + 1);
+        // who sends commands (user in admin, energie, SmartView, scripts) - for diagnosis
+        this.log.info(`Befehl ${key} = ${state.val} (von ${String(state.from || '?').replace('system.adapter.', '')})`);
         try {
             if (key === 'control.current') {
                 await this.setCurrent(state.val);
@@ -335,7 +342,8 @@ class Versicharge extends utils.Adapter {
         }
         await this.mb.writeSingle(R.REG.current, R.currentToReg(a));
         const back = R.regToCurrent((await this.mb.read(R.REG.current, 1))[0]);
-        this.log.debug(`Ladestrom ${a} A geschrieben, Wallbox meldet ${back} A`);
+        this.log.info(`Ladestrom ${a} A geschrieben, Wallbox meldet ${back} A`);
+        this.commanded = a;
         if (back >= 6) {
             this.lastOn = back;
         }

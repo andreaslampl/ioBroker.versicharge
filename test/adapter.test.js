@@ -153,3 +153,13 @@ test('a register the firmware does not have is skipped, the rest still works', a
     await until(() => adapter.val('status.charging') === true);
     assert.ok(!c.reads.some(([a, n]) => a <= 1603 && a + n > 1603));
 });
+
+test('diagnosis: commands are logged with their sender, changes by the wallbox itself too', async t => {
+    const { c, adapter } = await start(t);
+    c.revertPause = 16;
+    adapter.states['versicharge.0.control.current'] = { val: 0, ack: false, from: 'system.adapter.admin.0' };
+    adapter.emit('stateChange', 'versicharge.0.control.current', adapter.states['versicharge.0.control.current']);
+    await until(() => adapter.logs.some(l => /Wallbox meldet jetzt 16 A statt 0 A, ohne Befehl/.test(l)));
+    assert.ok(adapter.logs.some(l => l === 'info: Befehl control.current = 0 (von admin.0)'));
+    assert.ok(adapter.logs.some(l => l === 'info: Ladestrom 0 A geschrieben, Wallbox meldet 0 A'));
+});

@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "versicharge",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "news": {
+      "0.1.2": {
+        "en": "Diagnosis: the log shows every command with its sender and when the wallbox changes the charging current by itself",
+        "de": "Diagnose: Das Log zeigt jeden Befehl mit Absender und wenn die Wallbox den Ladestrom selbst ändert"
+      },
       "0.1.1": {
         "en": "Fixed 'Modbus error 2: address not allowed': the first read spanned register 40024, which is not in the table; registers a firmware does not have are now skipped",
         "de": "Behoben: „Modbus-Fehler 2: Adresse nicht erlaubt“ – die erste Abfrage ging über Register 40024, das es nicht gibt; Register, die eine Firmware nicht kennt, werden jetzt übersprungen"

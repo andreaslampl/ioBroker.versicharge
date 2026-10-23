@@ -150,6 +150,12 @@ function fakeCharger({ unitId = 2, phases = 3, install = 16, missing = [] } = {}
                     }
                     // the charger returns the limit in the 0-80 A range
                     regs[addr] = addr === 1633 && v > 100 ? Math.floor(v / 100) : v;
+                    if (addr === 1633 && v < 6 && c.revertPause) {
+                        setTimeout(() => {
+                            regs[1633] = c.revertPause;
+                            c.update();
+                        }, 100);
+                    }
                     c.writes.push({ addr, values: [v] });
                     c.update();
                     answer(pdu.subarray(0, 5));
