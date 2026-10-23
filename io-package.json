@@ -1,0 +1,86 @@
+{
+  "common": {
+    "name": "versicharge",
+    "version": "0.1.0",
+    "news": {
+      "0.1.0": {
+        "en": "First version: Siemens VersiCharge via Modbus TCP - status, power, energy, charging current, fallback on connection loss",
+        "de": "Erste Version: Siemens VersiCharge über Modbus TCP – Status, Leistung, Energie, Ladestrom, Rückfall bei Verbindungsverlust"
+      }
+    },
+    "titleLang": {
+      "en": "Siemens VersiCharge",
+      "de": "Siemens VersiCharge"
+    },
+    "desc": {
+      "en": "Siemens VersiCharge wallbox via local Modbus TCP: status, power, energy and charging current (for PV surplus charging with the energie adapter)",
+      "de": "Siemens-VersiCharge-Wallbox über lokales Modbus TCP: Status, Leistung, Energie und Ladestrom (für PV-Überschussladen mit dem energie-Adapter)"
+    },
+    "authors": [
+      "andreaslampl"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "mode": "daemon",
+    "icon": "versicharge.png",
+    "extIcon": "https://raw.githubusercontent.com/andreaslampl/ioBroker.versicharge/main/admin/versicharge.png",
+    "readme": "https://github.com/andreaslampl/ioBroker.versicharge/blob/main/README.md",
+    "enabled": true,
+    "type": "energy",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "poll",
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.19"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.0.0"
+      }
+    ],
+    "tier": 2
+  },
+  "native": {
+    "host": "",
+    "port": 502,
+    "unitId": 2,
+    "interval": 5,
+    "timeout": 5,
+    "maxCurrent": 0,
+    "fallbackTime": 300,
+    "fallbackMode": "max",
+    "fallbackCurrent": 6
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "name": {
+          "en": "Connected to the wallbox",
+          "de": "Verbunden mit der Wallbox"
+        },
+        "type": "boolean",
+        "role": "indicator.connected",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ]
+}

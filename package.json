@@ -1,0 +1,41 @@
+{
+  "name": "iobroker.versicharge",
+  "version": "0.1.0",
+  "description": "Siemens VersiCharge wallbox via Modbus TCP for ioBroker",
+  "author": "andreaslampl",
+  "license": "MIT",
+  "homepage": "https://github.com/andreaslampl/ioBroker.versicharge",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andreaslampl/ioBroker.versicharge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andreaslampl/ioBroker.versicharge/issues"
+  },
+  "keywords": [
+    "ioBroker",
+    "Siemens",
+    "VersiCharge",
+    "wallbox",
+    "Modbus",
+    "EV charging"
+  ],
+  "main": "main.js",
+  "files": [
+    "admin/",
+    "lib/",
+    "main.js",
+    "io-package.json",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.2.3"
+  },
+  "scripts": {
+    "test": "node --test --test-timeout=30000 test/*.test.js"
+  }
+}

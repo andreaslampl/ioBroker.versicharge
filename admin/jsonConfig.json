@@ -1,0 +1,17 @@
+{
+  "i18n": true,
+  "type": "panel",
+  "items": {
+    "help": { "type": "staticText", "text": "Modbus must be switched on in the wallbox first (Sifinity Go app). The wallbox accepts only ONE Modbus connection: stop evcc or other programs that use it.", "xs": 12 },
+    "host": { "type": "text", "label": "Address of the wallbox", "help": "IP address or name, e.g. 192.168.1.x", "newLine": true, "xs": 12, "sm": 6 },
+    "port": { "type": "number", "label": "Port", "min": 1, "max": 65535, "default": 502, "xs": 6, "sm": 2 },
+    "unitId": { "type": "number", "label": "Unit ID", "min": 0, "max": 255, "default": 2, "xs": 6, "sm": 2 },
+    "interval": { "type": "number", "label": "Poll interval (s)", "help": "Siemens: at least 2 s", "min": 2, "max": 300, "default": 5, "newLine": true, "xs": 6, "sm": 3 },
+    "timeout": { "type": "number", "label": "Timeout (s)", "min": 5, "max": 60, "default": 5, "xs": 6, "sm": 3 },
+    "maxCurrent": { "type": "number", "label": "Highest charging current (A)", "help": "0 = as set at the wallbox (rotary switch)", "min": 0, "max": 80, "default": 0, "xs": 12, "sm": 4 },
+    "fallbackHelp": { "type": "staticText", "text": "If ioBroker no longer reaches the wallbox for this time (e.g. ioBroker stopped), the wallbox switches to the current chosen here by itself.", "newLine": true, "xs": 12 },
+    "fallbackTime": { "type": "number", "label": "Fallback after (s)", "help": "60-600, 0 = off", "min": 0, "max": 600, "default": 300, "newLine": true, "xs": 12, "sm": 3 },
+    "fallbackMode": { "type": "select", "label": "Then", "default": "max", "options": [ { "label": "charge normally (highest current)", "value": "max" }, { "label": "pause charging", "value": "stop" }, { "label": "own current", "value": "custom" } ], "xs": 12, "sm": 4 },
+    "fallbackCurrent": { "type": "number", "label": "Own current (A)", "min": 6, "max": 80, "default": 6, "hidden": "data.fallbackMode !== 'custom'", "xs": 12, "sm": 3 }
+  }
+}

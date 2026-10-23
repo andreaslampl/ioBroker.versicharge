@@ -1,0 +1,20 @@
+{
+  "0 = as set at the wallbox (rotary switch)": "0 = wie an der Wallbox eingestellt (Drehschalter)",
+  "60-600, 0 = off": "60–600, 0 = aus",
+  "Address of the wallbox": "Adresse der Wallbox",
+  "Fallback after (s)": "Rückfall nach (s)",
+  "Highest charging current (A)": "Höchster Ladestrom (A)",
+  "IP address or name, e.g. 192.168.1.x": "IP-Adresse oder Name, z. B. 192.168.1.x",
+  "If ioBroker no longer reaches the wallbox for this time (e.g. ioBroker stopped), the wallbox switches to the current chosen here by itself.": "Erreicht ioBroker die Wallbox so lange nicht mehr (z. B. ioBroker gestoppt), stellt die Wallbox selbst auf den hier gewählten Strom um.",
+  "Modbus must be switched on in the wallbox first (Sifinity Go app). The wallbox accepts only ONE Modbus connection: stop evcc or other programs that use it.": "Modbus muss zuerst in der Wallbox eingeschaltet werden (Sifinity-Go-App). Die Wallbox erlaubt nur EINE Modbus-Verbindung: evcc oder andere Programme, die sie nutzen, vorher stoppen.",
+  "Own current (A)": "Eigener Strom (A)",
+  "Poll interval (s)": "Abfrage alle (s)",
+  "Port": "Port",
+  "Siemens: at least 2 s": "Siemens: mindestens 2 s",
+  "Then": "Dann",
+  "Timeout (s)": "Zeitüberschreitung (s)",
+  "Unit ID": "Unit-ID",
+  "charge normally (highest current)": "normal laden (höchster Strom)",
+  "own current": "eigener Strom",
+  "pause charging": "Laden pausieren"
+}
