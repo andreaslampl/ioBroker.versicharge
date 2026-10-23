@@ -41,7 +41,8 @@ FW >= V2.136.14). evcc's versicharge driver is not MIT licensed - do not copy fr
   0.1.3 `holdPause()`: after a pause command `this.pause` is set; while it is set the register value >= 6 is shown
   as 0 (control.current/enabled), and if the car charges anyway (C2 and > 1 kW for 2 polls) 0 is sent again
   (at most every 60 s, warn after 3). Commands and repeats run via `exclusive()` (a repeat never overwrites a
-  newer command). Open: whether the car really stays paused, and whether 6 A after the pause resumes the ID.4.
+  newer command). 0.1.3 confirmed by the owner: pause (0 A) and resume (6 A) work with the ID.4.
+  Next: surplus charging via energie (Reiter Wallbox) and the SmartView tile - not yet tested.
 - No 1p/3p switching register exists in the map (only 41643 = charger type, read-only).
 
 ## Conventions
