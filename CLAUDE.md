@@ -9,7 +9,9 @@ FW >= V2.136.14). evcc's versicharge driver is not MIT licensed - do not copy fr
 - `lib/modbus.js` – `ModbusClient`: one persistent TCP connection (the charger accepts only ONE Modbus
   client), requests serialized with a small gap, FC 03/06/16, timeout drops the connection (late answers
   would confuse the next request), `connect()` emits 'connect'.
-- `lib/registers.js` – register blocks exactly as in the table (reads across gaps -> exception 2),
+- `lib/registers.js` – `INFO`/`POLL` = one entry per table row, `blocks()` merges directly following entries
+  (reads across gaps -> exception 2; main `readEntries()` then reads that block entry by entry and skips
+  refused entries for good, logged once as info),
   internal addresses = external - 40001. `evseState()` (J1772 A/B/C/E/F), error texts, current
   encoding (<= 100 = A, > 100 = 0.01 A, < 6 A pauses; read back always in A), `parseInfo`/`parsePoll`.
 - `main.js` – poll every `interval` s (min 2 s per Siemens), device info + fallback (41661 current,
@@ -24,6 +26,9 @@ FW >= V2.136.14). evcc's versicharge driver is not MIT licensed - do not copy fr
 - 0.1.0: owner's wallbox: VersiCharge 3, firmware 2.500.34+25-32, 3-phase, car VW ID.4. So far it is
   driven by evcc (holds the single Modbus connection). Not yet tested against the real wallbox.
   Surplus charging lives in ioBroker.energie, the tile in ioBroker.smartview.
+- 0.1.0 field: connected to the real wallbox (evcc stopped), but "Modbus-Fehler 2": the first info block
+  40001-40031 spanned 40024, which is not in the table. 0.1.1: entry-wise table + fallback (see above);
+  the fake charger now refuses every read touching a register outside the table, and Modbus errors name the register.
 - No 1p/3p switching register exists in the map (only 41643 = charger type, read-only).
 
 ## Conventions

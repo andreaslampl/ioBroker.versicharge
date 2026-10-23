@@ -1,6 +1,6 @@
 {
   "name": "iobroker.versicharge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Siemens VersiCharge wallbox via Modbus TCP for ioBroker",
   "author": "andreaslampl",
   "license": "MIT",

@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "versicharge",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "news": {
+      "0.1.1": {
+        "en": "Fixed 'Modbus error 2: address not allowed': the first read spanned register 40024, which is not in the table; registers a firmware does not have are now skipped",
+        "de": "Behoben: „Modbus-Fehler 2: Adresse nicht erlaubt“ – die erste Abfrage ging über Register 40024, das es nicht gibt; Register, die eine Firmware nicht kennt, werden jetzt übersprungen"
+      },
       "0.1.0": {
         "en": "First version: Siemens VersiCharge via Modbus TCP - status, power, energy, charging current, fallback on connection loss",
         "de": "Erste Version: Siemens VersiCharge über Modbus TCP – Status, Leistung, Energie, Ladestrom, Rückfall bei Verbindungsverlust"
